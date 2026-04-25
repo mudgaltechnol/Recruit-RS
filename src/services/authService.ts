@@ -71,7 +71,15 @@ export const authService = {
       return user;
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/login`, {
+    const loginUrl = `${API_BASE_URL}/api/login`;
+
+    console.info('[auth.login] Request started', {
+      url: loginUrl,
+      apiBaseUrl: API_BASE_URL || '(same-origin)',
+      email,
+    });
+
+    const response = await fetch(loginUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
@@ -79,20 +87,52 @@ export const authService = {
 
     const responseBody = await parseResponseBody(response);
 
+    console.info('[auth.login] Response received', {
+      url: loginUrl,
+      status: response.status,
+      ok: response.ok,
+      contentType: response.headers.get('content-type'),
+      body: responseBody,
+    });
+
     if (!response.ok) {
       if (responseBody && typeof responseBody === 'object' && 'error' in responseBody) {
-        throw new Error(String(responseBody.error || 'Login failed'));
+        const message = String(responseBody.error || 'Login failed');
+        console.error('[auth.login] Request failed', {
+          url: loginUrl,
+          status: response.status,
+          message,
+          body: responseBody,
+        });
+        throw new Error(`${message} [${response.status}] (${loginUrl})`);
       }
 
       if (typeof responseBody === 'string' && responseBody.trim()) {
-        throw new Error(responseBody.trim());
+        const message = responseBody.trim();
+        console.error('[auth.login] Request failed', {
+          url: loginUrl,
+          status: response.status,
+          message,
+        });
+        throw new Error(`${message} [${response.status}] (${loginUrl})`);
       }
 
-      throw new Error(`Login failed with status ${response.status}`);
+      const message = `Login failed with status ${response.status}`;
+      console.error('[auth.login] Request failed', {
+        url: loginUrl,
+        status: response.status,
+        body: responseBody,
+      });
+      throw new Error(`${message} (${loginUrl})`);
     }
 
     if (!responseBody || typeof responseBody !== 'object') {
-      throw new Error('Login failed: server returned an invalid response.');
+      console.error('[auth.login] Invalid success payload', {
+        url: loginUrl,
+        status: response.status,
+        body: responseBody,
+      });
+      throw new Error(`Login failed: server returned an invalid response. (${loginUrl})`);
     }
 
     const user = responseBody as User;
