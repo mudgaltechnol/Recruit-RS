@@ -1,0 +1,83 @@
+{
+  "entities": {
+    "Candidate": {
+      "title": "Candidate",
+      "description": "A professional candidate applying for architectural roles.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the candidate." },
+        "name": { "type": "string", "description": "Full name of the candidate." },
+        "email": { "type": "string", "format": "email", "description": "Contact email address." },
+        "role": { "type": "string", "description": "The role title they applied for." },
+        "status": { "type": "string", "enum": ["Applied", "Interviewing", "Selected", "Rejected"], "description": "Current status in the recruitment funnel." },
+        "appliedDate": { "type": "string", "format": "date", "description": "Date of application." },
+        "portfolio": { "type": "string", "format": "uri", "description": "Link to the candidate's portfolio." },
+        "resumeUrl": { "type": "string", "format": "uri", "description": "Public URL to the uploaded resume." },
+        "message": { "type": "string", "description": "Brief introduction or message from the candidate." },
+        "avatar": { "type": "string", "format": "uri", "description": "URL to the candidate's avatar image." }
+      },
+      "required": ["id", "name", "email", "role", "status"]
+    },
+    "Role": {
+      "title": "Role",
+      "description": "An open architectural mandate or job position.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the role." },
+        "title": { "type": "string", "description": "Job title." },
+        "client": { "type": "string", "description": "Name of the client firm." },
+        "location": { "type": "string", "description": "Geographic location of the role." },
+        "salary": { "type": "string", "description": "Salary range." },
+        "expertise": { "type": "array", "items": { "type": "string" }, "description": "Required skills or expertise." },
+        "headcount": { "type": "string", "description": "Current vs target headcount (e.g., 1/2)." },
+        "status": { "type": "string", "enum": ["Open", "Closed"], "description": "Whether the role is currently active." },
+        "description": { "type": "string", "description": "Brief description of the role." }
+      },
+      "required": ["id", "title", "client", "status"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Client testimonial or feedback.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer", "description": "Unique identifier for the review." },
+        "author": { "type": "string", "description": "Name of the reviewer." },
+        "role": { "type": "string", "description": "Job title and company of the reviewer." },
+        "content": { "type": "string", "description": "The testimonial text." },
+        "rating": { "type": "integer", "description": "Star rating (1-5)." },
+        "date": { "type": "string", "description": "Relative date of the review." }
+      },
+      "required": ["id", "author", "content", "rating"]
+    },
+    "Stats": {
+      "title": "Stats",
+      "description": "Aggregated agency performance metrics.",
+      "type": "object",
+      "properties": {
+        "totalPlacements": { "type": "integer", "description": "Total number of successful placements." },
+        "activeMandates": { "type": "integer", "description": "Number of currently open roles." },
+        "talentPoolSize": { "type": "string", "description": "Total number of candidates in the network." },
+        "avgTimeToFill": { "type": "string", "description": "Average duration to close a mandate." }
+      },
+      "required": ["totalPlacements", "activeMandates", "talentPoolSize", "avgTimeToFill"]
+    }
+  },
+  "firestore": {
+    "/candidates/{candidateId}": {
+      "schema": "Candidate",
+      "description": "Collection of job applicants."
+    },
+    "/roles/{roleId}": {
+      "schema": "Role",
+      "description": "Collection of job mandates."
+    },
+    "/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Collection of client testimonials."
+    },
+    "/stats/global": {
+      "schema": "Stats",
+      "description": "Global agency statistics."
+    }
+  }
+}

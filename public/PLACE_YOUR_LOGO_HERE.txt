@@ -1,0 +1,3 @@
+Paste your logo file in this folder with the exact name:
+
+logo.png
