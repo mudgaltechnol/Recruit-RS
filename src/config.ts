@@ -1,8 +1,7 @@
 export const GET_DATA_FROM_FAKE = false;
 export const IS_PROD = true;
 
-const rawApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').trim();
-
+const rawApiBaseUrl = (process.env.VITE_API_BASE_URL || '').trim();
 export const API_BASE_URL = rawApiBaseUrl.replace(/\/+$/, '');
 
 export const ENDPOINTS = {
