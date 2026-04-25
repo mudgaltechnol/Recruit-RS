@@ -229,7 +229,10 @@ export async function initDb() {
       if (IS_PROD) {
         throw mysqlErr;
       }
-      console.error("MySQL Initialization failed, falling back to AlaSQL:", mysqlErr.message);
+      console.error(
+        "MySQL Initialization failed, falling back to AlaSQL:",
+        mysqlErr instanceof Error ? mysqlErr.message : String(mysqlErr)
+      );
     }
   }
 
