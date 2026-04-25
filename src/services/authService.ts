@@ -47,6 +47,25 @@ const parseResponseBody = async (response: Response) => {
   }
 };
 
+const getLoginErrorMessage = (responseBody: unknown, status: number) => {
+  if (responseBody && typeof responseBody === 'object' && 'error' in responseBody) {
+    const message = String(responseBody.error || '').trim();
+    if (message) {
+      return message;
+    }
+  }
+
+  if (typeof responseBody === 'string' && responseBody.trim()) {
+    return responseBody.trim();
+  }
+
+  if (status >= 500) {
+    return 'Unable to sign in right now. Please try again in a moment.';
+  }
+
+  return 'Authentication failed. Please check your credentials and try again.';
+};
+
 export const authService = {
   login: async (email: string, password: string): Promise<User> => {
     if (GET_DATA_FROM_FAKE) {
@@ -96,34 +115,14 @@ export const authService = {
     });
 
     if (!response.ok) {
-      if (responseBody && typeof responseBody === 'object' && 'error' in responseBody) {
-        const message = String(responseBody.error || 'Login failed');
-        console.error('[auth.login] Request failed', {
-          url: loginUrl,
-          status: response.status,
-          message,
-          body: responseBody,
-        });
-        throw new Error(`${message} [${response.status}] (${loginUrl})`);
-      }
-
-      if (typeof responseBody === 'string' && responseBody.trim()) {
-        const message = responseBody.trim();
-        console.error('[auth.login] Request failed', {
-          url: loginUrl,
-          status: response.status,
-          message,
-        });
-        throw new Error(`${message} [${response.status}] (${loginUrl})`);
-      }
-
-      const message = `Login failed with status ${response.status}`;
+      const message = getLoginErrorMessage(responseBody, response.status);
       console.error('[auth.login] Request failed', {
         url: loginUrl,
         status: response.status,
+        message,
         body: responseBody,
       });
-      throw new Error(`${message} (${loginUrl})`);
+      throw new Error(message);
     }
 
     if (!responseBody || typeof responseBody !== 'object') {
@@ -132,7 +131,7 @@ export const authService = {
         status: response.status,
         body: responseBody,
       });
-      throw new Error(`Login failed: server returned an invalid response. (${loginUrl})`);
+      throw new Error('Unable to sign in right now. Please try again in a moment.');
     }
 
     const user = responseBody as User;
