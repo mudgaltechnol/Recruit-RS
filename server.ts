@@ -26,6 +26,19 @@ const S3_SIGNED_URL_TTL_SECONDS = Number(process.env.AWS_S3_SIGNED_URL_TTL_SECON
 const S3_RESUME_PREFIX = (process.env.AWS_S3_RESUME_PREFIX || "cv").replace(/^\/+|\/+$/g, "");
 const s3Host = S3_REGION ? `s3.${S3_REGION}.amazonaws.com` : "";
 const s3BucketHost = S3_BUCKET ? `${S3_BUCKET}.s3.${S3_REGION}.amazonaws.com` : "";
+const configuredCorsOrigins = (process.env.CORS_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const allowedCorsOrigins = new Set([
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:5173",
+  "https://recruitrighthr.com",
+  "https://www.recruitrighthr.com",
+  ...configuredCorsOrigins,
+]);
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(process.cwd(), "uploads");
@@ -388,6 +401,25 @@ async function startServer() {
   try {
     const app = express();
     const PORT = 3000;
+
+    app.use((req, res, next) => {
+      const requestOrigin = req.headers.origin;
+
+      if (requestOrigin && allowedCorsOrigins.has(requestOrigin)) {
+        res.header("Access-Control-Allow-Origin", requestOrigin);
+        res.header("Vary", "Origin");
+        res.header("Access-Control-Allow-Credentials", "true");
+      }
+
+      res.header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+      res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+
+      if (req.method === "OPTIONS") {
+        return res.sendStatus(204);
+      }
+
+      next();
+    });
 
     app.use(express.json());
 
