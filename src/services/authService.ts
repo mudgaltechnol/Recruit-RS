@@ -33,6 +33,20 @@ export const isAdminUser = (user: User | null) => {
   return normalizedRole === 'admin';
 };
 
+const parseResponseBody = async (response: Response) => {
+  const rawBody = await response.text();
+
+  if (!rawBody) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(rawBody);
+  } catch {
+    return rawBody;
+  }
+};
+
 export const authService = {
   login: async (email: string, password: string): Promise<User> => {
     if (GET_DATA_FROM_FAKE) {
@@ -63,12 +77,25 @@ export const authService = {
       body: JSON.stringify({ email, password })
     });
 
+    const responseBody = await parseResponseBody(response);
+
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Login failed');
+      if (responseBody && typeof responseBody === 'object' && 'error' in responseBody) {
+        throw new Error(String(responseBody.error || 'Login failed'));
+      }
+
+      if (typeof responseBody === 'string' && responseBody.trim()) {
+        throw new Error(responseBody.trim());
+      }
+
+      throw new Error(`Login failed with status ${response.status}`);
     }
 
-    const user = await response.json();
+    if (!responseBody || typeof responseBody !== 'object') {
+      throw new Error('Login failed: server returned an invalid response.');
+    }
+
+    const user = responseBody as User;
     localStorage.setItem('nexus_user', JSON.stringify(user));
     return user;
   },
