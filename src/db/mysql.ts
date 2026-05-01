@@ -12,12 +12,8 @@ const getRequiredMysqlConfig = () => ({
 });
 
 export function getMysqlPool() {
-  if (!IS_PROD) {
-    return null;
-  }
-
   const config = getRequiredMysqlConfig();
-  const hasRequiredConfig = config.host && config.user && config.password && config.database;
+  const hasRequiredConfig = config.host && config.user && config.database;
 
   if (!hasRequiredConfig) {
     return null;

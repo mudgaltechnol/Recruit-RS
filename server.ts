@@ -483,6 +483,17 @@ async function startServer() {
       res.json(openRoles);
     });
 
+    app.get("/api/public/roles/:id", async (req, res) => {
+      try {
+        const roles = await dbService.getRoles();
+        const role = roles.find((r: any) => String(r.id) === String(req.params.id));
+        if (!role) return res.status(404).json({ error: "Role not found" });
+        res.json(role);
+      } catch (err) {
+        res.status(500).json({ error: "Failed to fetch role" });
+      }
+    });
+
     app.get("/api/public/testimonials", async (req, res) => {
       const testimonials = await dbService.getTestimonials();
       res.json(testimonials);

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
-import { ArrowRight, Briefcase, Calendar, ChevronLeft, ChevronRight, Globe, Mail, MapPin, Phone } from 'lucide-react';
-
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, Briefcase, ChevronLeft, ChevronRight, Clock, FileText, Globe, Mail, MapPin, Phone, Share2, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import { formatRupeeAmount } from '@/src/lib/utils';
 import { ApplyDialog } from '../components/ApplyDialog';
 import { Loader } from '../components/Loader';
@@ -12,10 +12,29 @@ import { publicService } from '../services/publicService';
 import { cn } from '@/src/lib/utils';
 
 export const PositionsPage = () => {
+  const navigate = useNavigate();
   const [isApplyOpen, setIsApplyOpen] = useState(false);
   const [selectedRoleId, setSelectedRoleId] = useState<string | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
+  const [copiedRoleId, setCopiedRoleId] = useState<string | null>(null);
+  const [expandedDescriptions, setExpandedDescriptions] = useState<string[]>([]);
   const PAGE_SIZE = 20;
+
+  const handleShareRole = (roleId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const link = `${window.location.origin}/roles/${roleId}`;
+    navigator.clipboard.writeText(link).then(() => {
+      setCopiedRoleId(roleId);
+      setTimeout(() => setCopiedRoleId(null), 2000);
+    });
+  };
+
+  const toggleDescription = (roleId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedDescriptions(prev =>
+      prev.includes(roleId) ? prev.filter(id => id !== roleId) : [...prev, roleId]
+    );
+  };
 
   const { data: roles = [], isLoading, isError } = useQuery({
     queryKey: ['public-positions'],
@@ -75,43 +94,103 @@ export const PositionsPage = () => {
                 return (
                   <>
                     {paginatedRoles.map((role: any) => (
-                <article key={role.id} className="bg-white rounded-3xl p-8 editorial-shadow border border-slate-100">
-                  <div className="flex items-start justify-between gap-4 mb-6">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-2">{role.client}</p>
-                      <h2 className="font-headline text-2xl font-extrabold tracking-tight text-primary">{role.title}</h2>
+                <article key={role.id} className="bg-white rounded-3xl editorial-shadow border border-slate-100 overflow-hidden">
+                  <div className="p-8">
+                    <div className="flex items-start justify-between gap-4 mb-6">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-2">{role.client}</p>
+                        <button
+                          onClick={() => navigate(`/roles/${role.id}`)}
+                          className="font-headline text-2xl font-extrabold tracking-tight text-primary hover:text-secondary transition-colors text-left hover:underline"
+                        >
+                          {role.title}
+                        </button>
+                      </div>
+                      <div className="w-12 h-12 rounded-2xl bg-surface-container-low flex items-center justify-center text-primary shrink-0">
+                        <Briefcase size={20} />
+                      </div>
                     </div>
-                    <div className="w-12 h-12 rounded-2xl bg-surface-container-low flex items-center justify-center text-primary">
-                      <Briefcase size={20} />
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 text-sm text-on-surface-variant">
+                      <div className="inline-flex items-center gap-2 rounded-2xl bg-surface-container-low px-4 py-3">
+                        <MapPin size={16} className="text-secondary" />
+                        {role.location}
+                      </div>
+                      {role.experienceType && (
+                        <div className="inline-flex items-center gap-2 rounded-2xl bg-surface-container-low px-4 py-3">
+                          <Clock size={16} className="text-secondary" />
+                          {role.experienceType}
+                        </div>
+                      )}
+                      {role.expertise?.length > 0 && (
+                        <div className="sm:col-span-2 flex flex-wrap gap-1.5">
+                          {role.expertise.map((exp: string, j: number) => (
+                            <span key={j} className="px-2 py-1 bg-secondary/10 text-secondary rounded-lg text-[9px] font-bold uppercase tracking-widest">{exp}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-5">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-1">Compensation</p>
+                        <p className="font-headline text-xl font-bold text-tertiary-container">
+                          {formatRupeeAmount(role.salary)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {role.description && (
+                          <button
+                            onClick={(e) => toggleDescription(role.id, e)}
+                            className={cn(
+                              'inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs border transition-colors',
+                              expandedDescriptions.includes(role.id)
+                                ? 'bg-surface-container text-primary border-outline-variant/20'
+                                : 'border-outline-variant/20 text-on-surface-variant hover:text-primary hover:bg-surface-container-low'
+                            )}
+                          >
+                            {expandedDescriptions.includes(role.id) ? <ChevronUp size={14} /> : <FileText size={14} />}
+                            {expandedDescriptions.includes(role.id) ? 'Hide' : 'Details'}
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => handleShareRole(role.id, e)}
+                          className={cn(
+                            'p-2.5 rounded-xl border font-bold text-xs transition-colors',
+                            copiedRoleId === role.id
+                              ? 'bg-tertiary-fixed text-on-tertiary-fixed-variant border-transparent'
+                              : 'border-outline-variant/20 text-on-surface-variant hover:text-primary hover:bg-surface-container-low'
+                          )}
+                          title="Copy job link"
+                        >
+                          {copiedRoleId === role.id ? <Check size={16} /> : <Share2 size={16} />}
+                        </button>
+                        <button
+                          onClick={() => handleApply(role.id)}
+                          className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-white hover:bg-primary-container transition-colors"
+                        >
+                          Apply Now
+                          <ArrowRight size={16} />
+                        </button>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6 text-sm text-on-surface-variant">
-                    <div className="inline-flex items-center gap-2 rounded-2xl bg-surface-container-low px-4 py-3">
-                      <MapPin size={16} className="text-secondary" />
-                      {role.location}
-                    </div>
-                    <div className="inline-flex items-center gap-2 rounded-2xl bg-surface-container-low px-4 py-3">
-                      <Calendar size={16} className="text-secondary" />
-                      {Array.isArray(role.expertise) ? role.expertise.join(', ') : role.expertise}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-6">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-1">Compensation</p>
-                      <p className="font-headline text-xl font-bold text-tertiary-container">
-                        {formatRupeeAmount(role.salary)}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => handleApply(role.id)}
-                      className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-white hover:bg-primary-container transition-colors"
-                    >
-                      Apply Now
-                      <ArrowRight size={16} />
-                    </button>
-                  </div>
+                  <AnimatePresence initial={false}>
+                    {expandedDescriptions.includes(role.id) && role.description && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.22, ease: 'easeInOut' }}
+                        className="overflow-hidden"
+                      >
+                        <div className="px-8 pb-8 pt-0 border-t border-slate-100">
+                          <p className="text-sm text-on-surface-variant leading-relaxed whitespace-pre-line mt-5">{role.description}</p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </article>
                     ))}
                     {totalPages > 1 && (

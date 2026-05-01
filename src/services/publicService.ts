@@ -24,6 +24,22 @@ export const publicService = {
     return response.json();
   },
 
+  getRoleById: async (id: string) => {
+    if (GET_DATA_FROM_FAKE) {
+      const { MOCK_ROLES } = await import('../mockData');
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          const role = MOCK_ROLES.find((r: any) => r.id === id);
+          if (role) resolve(role);
+          else reject(new Error('Role not found'));
+        }, 300);
+      });
+    }
+    const response = await fetch(`${API_BASE_URL}${ENDPOINTS.PUBLIC.ROLE_BY_ID(id)}`);
+    if (!response.ok) throw new Error('Failed to fetch role');
+    return response.json();
+  },
+
   apply: async (formData: any) => {
     const response = await fetch(`${API_BASE_URL}${ENDPOINTS.PUBLIC.APPLY}`, {
       method: 'POST',

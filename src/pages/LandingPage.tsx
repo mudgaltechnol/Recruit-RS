@@ -5,7 +5,6 @@ import {
   CloudUpload, 
   Globe, 
   Mail, 
-  MessageSquare, 
   Phone, 
   Send, 
   Verified,
@@ -21,25 +20,49 @@ import {
   Settings,
   Headset,
   Linkedin,
-  Instagram
+  Instagram,
+  Share2,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  FileText
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useQuery } from '@tanstack/react-query';
 import { cn, formatRupeeAmount } from '@/src/lib/utils';
 import { ApplyDialog } from '../components/ApplyDialog';
 import { PublicHeader } from '../components/PublicHeader';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { publicService } from '../services/publicService';
 import { Loader } from '../components/Loader';
 import { BrandLogo } from '../components/BrandLogo';
 
 export const LandingPage = () => {
+  const navigate = useNavigate();
   const [isApplyOpen, setIsApplyOpen] = useState(false);
   const [selectedRoleId, setSelectedRoleId] = useState<string | undefined>(undefined);
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [subscribeMessage, setSubscribeMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+  const [copiedRoleId, setCopiedRoleId] = useState<string | null>(null);
+  const [expandedDescriptions, setExpandedDescriptions] = useState<string[]>([]);
+
+  const handleShareRole = (roleId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const link = `${window.location.origin}/roles/${roleId}`;
+    navigator.clipboard.writeText(link).then(() => {
+      setCopiedRoleId(roleId);
+      setTimeout(() => setCopiedRoleId(null), 2000);
+    });
+  };
+
+  const toggleDescription = (roleId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedDescriptions(prev =>
+      prev.includes(roleId) ? prev.filter(id => id !== roleId) : [...prev, roleId]
+    );
+  };
 
   const { data: roles = [], isLoading: loading } = useQuery({
     queryKey: ['roles'],
@@ -295,30 +318,81 @@ export const LandingPage = () => {
             <div className="space-y-6">
               {roles.length === 0 ? (
                 <div className="text-center py-12 text-slate-400 font-bold uppercase tracking-widest">Loading mandates...</div>
-              ) : roles.map((role, i) => (
-                <div key={i} className="bg-surface-container-lowest p-6 rounded-lg flex flex-col md:flex-row md:items-center justify-between group transition-all hover:editorial-shadow">
-                  <div className="flex items-center gap-6">
-                    <div className="w-14 h-14 bg-surface-container rounded-lg flex items-center justify-center font-headline font-black text-primary group-hover:bg-secondary-container transition-colors">
-                      {role.id.substring(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                      <h4 className="font-headline text-xl font-bold text-primary group-hover:text-secondary transition-colors">{role.title}</h4>
-                      <div className="flex flex-wrap gap-4 mt-1 text-sm text-on-surface-variant">
-                        <span className="flex items-center gap-1"><Briefcase size={14} /> {role.client}</span>
-                        <span className="flex items-center gap-1"><Globe size={14} /> {role.location}</span>
-                        <span className="flex items-center gap-1"><Calendar size={14} /> {role.expertise.join(', ')}</span>
+              ) : roles.map((role: any, i: number) => (
+                <div key={i} className="bg-surface-container-lowest rounded-lg group transition-all hover:editorial-shadow overflow-hidden">
+                  <div className="p-6 flex flex-col md:flex-row md:items-center justify-between">
+                    <div className="flex items-center gap-6">
+                      <div className="w-14 h-14 bg-surface-container rounded-lg flex items-center justify-center font-headline font-black text-primary group-hover:bg-secondary-container transition-colors shrink-0">
+                        {role.id.substring(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <button
+                          onClick={() => navigate(`/roles/${role.id}`)}
+                          className="font-headline text-xl font-bold text-primary group-hover:text-secondary transition-colors hover:underline text-left"
+                        >
+                          {role.title}
+                        </button>
+                        <div className="flex flex-wrap gap-4 mt-1 text-sm text-on-surface-variant">
+                          <span className="flex items-center gap-1"><Briefcase size={14} /> {role.client}</span>
+                          <span className="flex items-center gap-1"><Globe size={14} /> {role.location}</span>
+                          {role.experienceType && <span className="flex items-center gap-1"><Clock size={14} /> {role.experienceType}</span>}
+                        </div>
+                        {role.expertise?.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {role.expertise.slice(0, 4).map((exp: string, j: number) => (
+                              <span key={j} className="px-2 py-0.5 bg-secondary/10 text-secondary rounded text-[9px] font-bold uppercase tracking-widest">{exp}</span>
+                            ))}
+                            {role.expertise.length > 4 && <span className="text-[9px] font-bold text-slate-400">+{role.expertise.length - 4} more</span>}
+                          </div>
+                        )}
                       </div>
                     </div>
+                    <div className="mt-4 md:mt-0 flex items-center gap-3 shrink-0">
+                      <span className="font-headline font-bold text-tertiary-container">{formatRupeeAmount(role.salary)}</span>
+                      {role.description && (
+                        <button
+                          onClick={(e) => toggleDescription(role.id, e)}
+                          title="Toggle description"
+                          className="p-2 text-slate-400 hover:text-primary transition-colors rounded-lg hover:bg-slate-100"
+                        >
+                          {expandedDescriptions.includes(role.id) ? <ChevronUp size={16} /> : <FileText size={16} />}
+                        </button>
+                      )}
+                      <button
+                        onClick={(e) => handleShareRole(role.id, e)}
+                        title="Copy job link"
+                        className={cn(
+                          'p-2 rounded-lg transition-colors',
+                          copiedRoleId === role.id
+                            ? 'bg-tertiary-fixed text-on-tertiary-fixed-variant'
+                            : 'text-slate-400 hover:text-primary hover:bg-slate-100'
+                        )}
+                      >
+                        {copiedRoleId === role.id ? <Check size={16} /> : <Share2 size={16} />}
+                      </button>
+                      <button 
+                        onClick={() => handleApply(role.id)}
+                        className="bg-primary text-white px-5 py-2 rounded font-bold hover:bg-secondary transition-colors text-sm"
+                      >
+                        Apply
+                      </button>
+                    </div>
                   </div>
-                  <div className="mt-4 md:mt-0 flex items-center gap-6">
-                    <span className="font-headline font-bold text-tertiary-container">{formatRupeeAmount(role.salary)}</span>
-                    <button 
-                      onClick={() => handleApply(role.id)}
-                      className="bg-primary text-white px-6 py-2 rounded font-bold hover:bg-secondary transition-colors"
-                    >
-                      Apply
-                    </button>
-                  </div>
+                  <AnimatePresence initial={false}>
+                    {expandedDescriptions.includes(role.id) && role.description && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.22, ease: 'easeInOut' }}
+                        className="overflow-hidden"
+                      >
+                        <div className="px-6 pb-5 pt-0 border-t border-outline-variant/10">
+                          <p className="text-sm text-on-surface-variant leading-relaxed whitespace-pre-line mt-3">{role.description}</p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               ))}
             </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Briefcase, MapPin, DollarSign, Tag, Check, AlertCircle } from 'lucide-react';
+import { X, Briefcase, MapPin, DollarSign, Tag, Check, AlertCircle, Copy, Link2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { Loader } from './Loader';
 import { SearchableSelect } from './SearchableSelect';
@@ -25,6 +25,7 @@ export const RoleDialog = ({ isOpen, onClose, onSave, initialData }: RoleDialogP
     client: '',
     location: '',
     salary: '',
+    experienceType: '',
     expertise: [] as string[],
     headcount: '0/1',
     status: 'Open',
@@ -34,6 +35,8 @@ export const RoleDialog = ({ isOpen, onClose, onSave, initialData }: RoleDialogP
   const [expertiseInput, setExpertiseInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savedRoleId, setSavedRoleId] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const normalizeExpertise = (value: unknown): string[] => {
     if (Array.isArray(value)) {
@@ -68,6 +71,7 @@ export const RoleDialog = ({ isOpen, onClose, onSave, initialData }: RoleDialogP
         client: initialData.client || '',
         location: initialData.location || '',
         salary: initialData.salary || '',
+        experienceType: initialData.experienceType || '',
         expertise: normalizeExpertise(initialData.expertise),
         headcount: initialData.headcount || '0/1',
         status: initialData.status || 'Open',
@@ -80,6 +84,7 @@ export const RoleDialog = ({ isOpen, onClose, onSave, initialData }: RoleDialogP
         client: '',
         location: '',
         salary: '',
+        experienceType: '',
         expertise: [],
         headcount: '0/1',
         status: 'Open',
@@ -94,6 +99,9 @@ export const RoleDialog = ({ isOpen, onClose, onSave, initialData }: RoleDialogP
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
+      // Reset success state when dialog closes
+      setSavedRoleId(null);
+      setCopiedLink(false);
     }
     return () => {
       document.body.style.overflow = 'unset';
@@ -137,13 +145,30 @@ export const RoleDialog = ({ isOpen, onClose, onSave, initialData }: RoleDialogP
     };
 
     try {
-      await onSave(payload);
-      onClose();
+      const result = await onSave(payload);
+      // Show success state with role ID for Copy Job Link
+      const roleId = (result as any)?.id || (initialData?.id ?? null);
+      setSavedRoleId(roleId);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save role');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleCopyJobLink = () => {
+    if (!savedRoleId) return;
+    const link = `${window.location.origin}/roles/${savedRoleId}`;
+    navigator.clipboard.writeText(link).then(() => {
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+    });
+  };
+
+  const handleClose = () => {
+    setSavedRoleId(null);
+    setCopiedLink(false);
+    onClose();
   };
 
   return (
@@ -154,7 +179,7 @@ export const RoleDialog = ({ isOpen, onClose, onSave, initialData }: RoleDialogP
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            onClick={handleClose}
             className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm"
           />
           <div className="min-h-full flex items-center justify-center relative pointer-events-none">
@@ -174,14 +199,14 @@ export const RoleDialog = ({ isOpen, onClose, onSave, initialData }: RoleDialogP
               <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                 <div>
                   <h2 className="text-2xl font-black text-primary tracking-tighter">
-                    {initialData ? 'Edit Mandate' : 'Create New Mandate'}
+                    {savedRoleId ? 'Mandate Saved!' : (initialData ? 'Edit Mandate' : 'Create New Mandate')}
                   </h2>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-                    Define the architectural opportunity
+                    {savedRoleId ? 'Share or close this dialog' : 'Define the architectural opportunity'}
                   </p>
                 </div>
                 <button 
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="p-2 hover:bg-white rounded-full transition-colors text-slate-400 hover:text-primary"
                 >
                   <X size={24} />
@@ -189,6 +214,41 @@ export const RoleDialog = ({ isOpen, onClose, onSave, initialData }: RoleDialogP
               </div>
 
               <div className="p-8">
+                {/* ── Success State ── */}
+                {savedRoleId ? (
+                  <div className="py-8 flex flex-col items-center text-center space-y-6">
+                    <div className="w-20 h-20 rounded-full bg-tertiary-fixed flex items-center justify-center">
+                      <Check size={36} className="text-on-tertiary-fixed-variant" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-primary tracking-tighter mb-2">Mandate Created Successfully!</h3>
+                      <p className="text-sm text-on-surface-variant max-w-sm mx-auto">
+                        The role is now live. Share the job link so candidates can find and apply directly.
+                      </p>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
+                      <button
+                        onClick={handleCopyJobLink}
+                        className={cn(
+                          'flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all',
+                          copiedLink
+                            ? 'bg-tertiary-fixed text-on-tertiary-fixed-variant'
+                            : 'bg-secondary/10 text-secondary hover:bg-secondary/20 border border-secondary/20'
+                        )}
+                      >
+                        {copiedLink ? <Check size={16} /> : <Copy size={16} />}
+                        {copiedLink ? 'Copied!' : 'Copy Job Link'}
+                      </button>
+                      <button
+                        onClick={handleClose}
+                        className="flex-1 py-3 rounded-xl font-bold text-sm bg-primary text-white hover:bg-primary-container transition-all"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
                 {error && (
                   <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl flex items-center gap-3 text-sm font-medium">
                     <AlertCircle size={18} />
@@ -280,6 +340,17 @@ export const RoleDialog = ({ isOpen, onClose, onSave, initialData }: RoleDialogP
                   </div>
 
                   <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Experience Required</label>
+                    <input
+                      type="text"
+                      value={formData.experienceType}
+                      onChange={(e) => setFormData({...formData, experienceType: e.target.value})}
+                      className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm focus:ring-2 focus:ring-secondary/20 transition-all"
+                      placeholder="e.g. 3+ years, Fresher, 5-10 years"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Expertise Required (Press Enter or Comma)</label>
                     <div className="relative">
                       <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -334,6 +405,8 @@ export const RoleDialog = ({ isOpen, onClose, onSave, initialData }: RoleDialogP
                     </button>
                   </div>
                 </form>
+                  </>
+                )}
               </div>
             </motion.div>
           </div>

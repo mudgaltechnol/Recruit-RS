@@ -67,6 +67,12 @@ export async function initDb() {
 
   if (mysqlPool) {
     try {
+      const config = (mysqlPool as any).config?.connectionConfig || {};
+      const host = config.host || process.env.DB_HOST || 'unknown';
+      
+      console.log(`\n🚀 Starting in ${IS_PROD ? 'PRODUCTION' : 'LOCAL'} mode (IS_PROD=${IS_PROD})`);
+      console.log(`📡 Target Database Host: ${host}\n`);
+      
       console.log("Initializing MySQL RDS Database...");
       // Test connection
       await mysqlPool.query('SELECT 1');
@@ -105,8 +111,11 @@ export async function initDb() {
         expertise JSON, 
         headcount VARCHAR(255), 
         status VARCHAR(255) DEFAULT 'Open', 
-        description TEXT
+        description TEXT,
+        experienceType VARCHAR(255)
       )`);
+      
+      await addMysqlColumnIfMissing(mysqlPool, 'roles', 'experienceType', 'VARCHAR(255)');
       
       await mysqlPool.execute(`CREATE TABLE IF NOT EXISTS candidates (
         id VARCHAR(255) PRIMARY KEY, 
@@ -200,7 +209,7 @@ export async function initDb() {
 
       const [roles] = await mysqlPool.execute('SELECT COUNT(*) as count FROM roles');
       if ((roles as any)[0].count === 0) {
-        await mysqlPool.execute("INSERT INTO roles (id, title, client, location, salary, expertise, headcount, status, description) VALUES ('senior-project-architect', 'Senior Project Architect', 'Foster + Partners', 'New York, NY', '$140k - $185k', '[\"Revit\", \"Sustainability\"]', '2/3', 'Open', 'Leading the design and delivery of high-profile commercial projects in Manhattan.'), ('bim-manager', 'BIM Manager', 'Zaha Hadid Architects', 'London, UK', '£85k - £110k', '[\"BIM Level 2\", \"Rhino\"]', '0/1', 'Open', 'Implementing complex BIM workflows for parametric architectural projects.'), ('junior-urban-designer', 'Junior Urban Designer', 'Gensler', 'Berlin, DE', '€45k - €55k', '[\"Vectorworks\"]', '1/1', 'Open', 'Supporting the urban planning team on sustainable city initiatives across Europe.')");
+        await mysqlPool.execute("INSERT INTO roles (id, title, client, location, salary, expertise, headcount, status, description, experienceType) VALUES ('senior-project-architect', 'Senior Project Architect', 'Foster + Partners', 'New York, NY', '$140k - $185k', '[\"Revit\", \"Sustainability\"]', '2/3', 'Open', 'Leading the design and delivery of high-profile commercial projects in Manhattan.', '5-10 years'), ('bim-manager', 'BIM Manager', 'Zaha Hadid Architects', 'London, UK', '£85k - £110k', '[\"BIM Level 2\", \"Rhino\"]', '0/1', 'Open', 'Implementing complex BIM workflows for parametric architectural projects.', '3-5 years'), ('junior-urban-designer', 'Junior Urban Designer', 'Gensler', 'Berlin, DE', '€45k - €55k', '[\"Vectorworks\"]', '1/1', 'Open', 'Supporting the urban planning team on sustainable city initiatives across Europe.', 'Fresher')");
       }
 
       const [candidates] = await mysqlPool.execute('SELECT COUNT(*) as count FROM candidates');
@@ -229,24 +238,24 @@ export async function initDb() {
       if (IS_PROD) {
         throw mysqlErr;
       }
-      console.error(
-        "MySQL Initialization failed, falling back to AlaSQL:",
-        mysqlErr instanceof Error ? mysqlErr.message : String(mysqlErr)
-      );
+      const host = process.env.DB_HOST || 'localhost';
+      console.error(`\n❌ Local MySQL (${host}) failed, falling back to AlaSQL:`, mysqlErr instanceof Error ? mysqlErr.message : String(mysqlErr));
     }
   }
 
   try {
     console.log("Initializing AlaSQL Database...");
     // --- ALASQL FALLBACK ---
-    // 1. Create Tables (Standard SQL)
+    // Ensure tables exist in the default database
     alasql("CREATE TABLE IF NOT EXISTS employees (id INT AUTOINCREMENT PRIMARY KEY, name STRING NOT NULL, email STRING NOT NULL UNIQUE, password STRING NOT NULL, position STRING, role STRING DEFAULT 'employee', type INT, status STRING, mobile STRING, address STRING, updatedat DATETIME)");
-    alasql("CREATE TABLE IF NOT EXISTS roles (id STRING PRIMARY KEY, title STRING NOT NULL, client STRING NOT NULL, location STRING NOT NULL, salary STRING, expertise JSON, headcount STRING, status STRING DEFAULT 'Open', description STRING)");
+    alasql("CREATE TABLE IF NOT EXISTS roles (id STRING PRIMARY KEY, title STRING NOT NULL, client STRING NOT NULL, location STRING NOT NULL, salary STRING, expertise JSON, headcount STRING, status STRING DEFAULT 'Open', description STRING, experienceType STRING)");
     alasql("CREATE TABLE IF NOT EXISTS candidates (id STRING PRIMARY KEY, name STRING NOT NULL, email STRING NOT NULL, role STRING, experience STRING, phone STRING, location STRING, preferredLocation STRING, industry STRING, status STRING DEFAULT 'Applied', avatar STRING, summary STRING, skills JSON, matchScore INT, appliedDate STRING, expectedSalary STRING, noticePeriod STRING, source STRING, portfolio STRING, message STRING, resumeUrl STRING)");
     alasql("CREATE TABLE IF NOT EXISTS reviews (id INT AUTOINCREMENT PRIMARY KEY, author STRING NOT NULL, role STRING, content STRING, rating INT, date STRING)");
     alasql("CREATE TABLE IF NOT EXISTS newsletter_subscribers (email STRING PRIMARY KEY, subscribed_at DATETIME)");
     alasql("CREATE TABLE IF NOT EXISTS schedule_events (id STRING PRIMARY KEY, title STRING NOT NULL, startTime STRING NOT NULL, endTime STRING NOT NULL, candidateId STRING, candidateName STRING, candidateEmail STRING, roleId STRING, roleTitle STRING, type STRING, location STRING, status STRING DEFAULT 'Scheduled', notes STRING, sendCandidateEmail BOOLEAN, senderName STRING, senderEmail STRING, emailSubject STRING, emailMessage STRING)");
     alasql("CREATE TABLE IF NOT EXISTS applications (id STRING PRIMARY KEY, candidateId STRING NOT NULL, roleId STRING NOT NULL, email STRING NOT NULL, status STRING DEFAULT 'Applied', appliedDate STRING, updatedAt DATETIME)");
+
+    console.log("AlaSQL Tables check:", Object.keys((alasql as any).tables));
 
     // --- LOAD DATA FROM FILE IF EXISTS ---
     if (fs.existsSync(DB_FILE)) {
@@ -292,7 +301,7 @@ export async function initDb() {
 
     const roles = alasql('SELECT * FROM roles') as any[];
     if (!roles || roles.length === 0) {
-      alasql("INSERT INTO roles (id, title, client, location, salary, expertise, headcount, status, description) VALUES ('senior-project-architect', 'Senior Project Architect', 'Foster + Partners', 'New York, NY', '$140k - $185k', '[\"Revit\", \"Sustainability\"]', '2/3', 'Open', 'Leading the design and delivery of high-profile commercial projects in Manhattan.'), ('bim-manager', 'BIM Manager', 'Zaha Hadid Architects', 'London, UK', '£85k - £110k', '[\"BIM Level 2\", \"Rhino\"]', '0/1', 'Open', 'Implementing complex BIM workflows for parametric architectural projects.'), ('junior-urban-designer', 'Junior Urban Designer', 'Gensler', 'Berlin, DE', '€45k - €55k', '[\"Vectorworks\"]', '1/1', 'Open', 'Supporting the urban planning team on sustainable city initiatives across Europe.')");
+      alasql("INSERT INTO roles (id, title, client, location, salary, expertise, headcount, status, description, experienceType) VALUES ('senior-project-architect', 'Senior Project Architect', 'Foster + Partners', 'New York, NY', '$140k - $185k', '[\"Revit\", \"Sustainability\"]', '2/3', 'Open', 'Leading the design and delivery of high-profile commercial projects in Manhattan.', '5-10 years'), ('bim-manager', 'BIM Manager', 'Zaha Hadid Architects', 'London, UK', '£85k - £110k', '[\"BIM Level 2\", \"Rhino\"]', '0/1', 'Open', 'Implementing complex BIM workflows for parametric architectural projects.', '3-5 years'), ('junior-urban-designer', 'Junior Urban Designer', 'Gensler', 'Berlin, DE', '€45k - €55k', '[\"Vectorworks\"]', '1/1', 'Open', 'Supporting the urban planning team on sustainable city initiatives across Europe.', 'Fresher')");
     }
 
     const candidates = alasql('SELECT * FROM candidates') as any[];

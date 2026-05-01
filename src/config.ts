@@ -1,5 +1,5 @@
 export const GET_DATA_FROM_FAKE = false;
-export const IS_PROD = true;
+export const IS_PROD = true; // Set to true for production deployment
 
 const envApiBaseUrl = (process.env.VITE_API_BASE_URL || '').trim();
 const defaultProdApiBaseUrl = 'https://api.recruitrighthr.com';
@@ -11,6 +11,7 @@ export const ENDPOINTS = {
   PUBLIC: {
     STATS: '/api/public/stats',
     ROLES: '/api/public/roles',
+    ROLE_BY_ID: (id: string) => `/api/public/roles/${id}`,
     APPLY: '/api/public/apply',
     UPLOAD_RESUME: (candidateId: string) => `/api/public/upload-resume/${candidateId}`,
     NEWSLETTER_SUBSCRIBE: '/api/public/newsletter/subscribe',

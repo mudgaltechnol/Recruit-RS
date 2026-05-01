@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LandingPage } from './pages/LandingPage';
 import { Dashboard } from './pages/Dashboard';
 import { PositionsPage } from './pages/PositionsPage';
+import { RoleDetailPage } from './pages/RoleDetailPage';
 import { CandidatesList } from './pages/CandidatesList';
 import { CandidateDetail } from './pages/CandidateDetail';
 import { RolesCatalog } from './pages/RolesCatalog';
@@ -33,6 +34,7 @@ const App = () => {
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/positions" element={<PositionsPage />} />
+          <Route path="/roles/:id" element={<RoleDetailPage />} />
           <Route path="/intelligence" element={<Dashboard />} />
 
           {/* Admin Routes */}

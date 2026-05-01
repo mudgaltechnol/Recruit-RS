@@ -2,10 +2,25 @@ import alasql from 'alasql';
 import { getMysqlPool } from '../db/mysql';
 import { saveDb } from '../db/init';
 import { MOCK_ADMIN_STATS } from '../mockData';
+import { IS_PROD } from '../config';
 
 const toMySqlDateTime = (value = new Date()) => {
   const date = value instanceof Date ? value : new Date(value);
   return date.toISOString().slice(0, 19).replace('T', ' ');
+};
+
+const ensureAlaSQLTables = () => {
+  const tables = (alasql as any).tables;
+  if (!tables || !tables.roles) {
+    console.log("Auto-initializing missing AlaSQL tables...");
+    alasql("CREATE TABLE IF NOT EXISTS employees (id INT AUTOINCREMENT PRIMARY KEY, name STRING NOT NULL, email STRING NOT NULL UNIQUE, password STRING NOT NULL, position STRING, role STRING DEFAULT 'employee', type INT, status STRING, mobile STRING, address STRING, updatedat DATETIME)");
+    alasql("CREATE TABLE IF NOT EXISTS roles (id STRING PRIMARY KEY, title STRING NOT NULL, client STRING NOT NULL, location STRING NOT NULL, salary STRING, expertise JSON, headcount STRING, status STRING DEFAULT 'Open', description STRING, experienceType STRING)");
+    alasql("CREATE TABLE IF NOT EXISTS candidates (id STRING PRIMARY KEY, name STRING NOT NULL, email STRING NOT NULL, role STRING, experience STRING, phone STRING, location STRING, preferredLocation STRING, industry STRING, status STRING DEFAULT 'Applied', avatar STRING, summary STRING, skills JSON, matchScore INT, appliedDate STRING, expectedSalary STRING, noticePeriod STRING, source STRING, portfolio STRING, message STRING, resumeUrl STRING)");
+    alasql("CREATE TABLE IF NOT EXISTS reviews (id INT AUTOINCREMENT PRIMARY KEY, author STRING NOT NULL, role STRING, content STRING, rating INT, date STRING)");
+    alasql("CREATE TABLE IF NOT EXISTS newsletter_subscribers (email STRING PRIMARY KEY, subscribed_at DATETIME)");
+    alasql("CREATE TABLE IF NOT EXISTS schedule_events (id STRING PRIMARY KEY, title STRING NOT NULL, startTime STRING NOT NULL, endTime STRING NOT NULL, candidateId STRING, candidateName STRING, candidateEmail STRING, roleId STRING, roleTitle STRING, type STRING, location STRING, status STRING DEFAULT 'Scheduled', notes STRING, sendCandidateEmail BOOLEAN, senderName STRING, senderEmail STRING, emailSubject STRING, emailMessage STRING)");
+    alasql("CREATE TABLE IF NOT EXISTS applications (id STRING PRIMARY KEY, candidateId STRING NOT NULL, roleId STRING NOT NULL, email STRING NOT NULL, status STRING DEFAULT 'Applied', appliedDate STRING, updatedAt DATETIME)");
+  }
 };
 
 export const dbService = {
@@ -16,13 +31,27 @@ export const dbService = {
       try {
         const [rows] = await mysqlPool.execute(sql, params);
         return rows as any[];
-      } catch (err) {
-        console.error("MySQL query failed:", err.message);
-        throw err;
+      } catch (err: any) {
+        if (IS_PROD) {
+          console.error("Production MySQL query failed:", err.message);
+          throw err;
+        }
+        console.error("Local MySQL query failed, falling back to AlaSQL:", err.message);
+        // Fall through to AlaSQL
       }
     }
 
-    return alasql(sql, params) as any[];
+    if (IS_PROD) {
+      throw new Error("MySQL is required in production but not available.");
+    }
+
+    ensureAlaSQLTables();
+    try {
+      return alasql(sql, params) as any[];
+    } catch (alasqlErr: any) {
+      console.error("AlaSQL query failed:", alasqlErr.message);
+      return [];
+    }
   },
 
   // ROLES
@@ -145,7 +174,7 @@ export const dbService = {
 
       const expertise = JSON.stringify(roleData.expertise || []);
       await dbService.query(
-        'INSERT INTO roles (id, title, client, location, salary, expertise, headcount, status, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO roles (id, title, client, location, salary, expertise, headcount, status, description, experienceType) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
           roleId,
           roleData.title || '',
@@ -155,7 +184,8 @@ export const dbService = {
           expertise,
           roleData.headcount || '0/1',
           roleData.status || 'Open',
-          roleData.description || ''
+          roleData.description || '',
+          roleData.experienceType || ''
         ]
       );
 
@@ -171,7 +201,7 @@ export const dbService = {
     try {
       const expertise = JSON.stringify(roleData.expertise || []);
       await dbService.query(
-        'UPDATE roles SET title = ?, client = ?, location = ?, salary = ?, expertise = ?, headcount = ?, status = ?, description = ? WHERE id = ?',
+        'UPDATE roles SET title = ?, client = ?, location = ?, salary = ?, expertise = ?, headcount = ?, status = ?, description = ?, experienceType = ? WHERE id = ?',
         [
           roleData.title || '',
           roleData.client || '',
@@ -181,6 +211,7 @@ export const dbService = {
           roleData.headcount || '0/1',
           roleData.status || 'Open',
           roleData.description || '',
+          roleData.experienceType || '',
           id
         ]
       );
@@ -683,7 +714,7 @@ export const dbService = {
   addScheduleEvent: async (eventData: any) => {
     try {
       const id = Math.random().toString(36).substr(2, 9);
-      await dbService.query("INSERT INTO schedule_events (id, title, startTime, endTime, candidateId, candidateName, candidateEmail, roleId, roleTitle, type, location, status, notes, sendCandidateEmail, senderName, senderEmail, emailSubject, emailMessage) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+      await dbService.query("INSERT INTO schedule_events (id, title, startTime, endTime, candidateId, candidateName, candidateEmail, roleId, roleTitle, type, location, status, notes, sendCandidateEmail, senderName, senderEmail, emailSubject, emailMessage) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [id, eventData.title, eventData.startTime, eventData.endTime, eventData.candidateId || null, eventData.candidateName || null, eventData.candidateEmail || null, eventData.roleId || null, eventData.roleTitle || null, eventData.type || 'Meeting', eventData.location || '', eventData.status || 'Scheduled', eventData.notes || '', eventData.sendCandidateEmail ? 1 : 0, eventData.senderName || null, eventData.senderEmail || null, eventData.emailSubject || null, eventData.emailMessage || null]);
       saveDb();
       return { id, ...eventData };
@@ -723,16 +754,16 @@ export const dbService = {
   // STATS
   getGlobalStats: async () => {
     try {
-      const openRolesRows = await dbService.query('SELECT COUNT(*) as count FROM roles WHERE status = \'Open\'');
-      const candidatesRows = await dbService.query('SELECT COUNT(*) as count FROM candidates');
-      const interviewingRows = await dbService.query('SELECT COUNT(*) as count FROM candidates WHERE status = \'Interviewing\'');
-      const selectedRows = await dbService.query('SELECT COUNT(*) as count FROM candidates WHERE status = \'Selected\' OR status = \'Placed\'');
+      const openRolesRows = await dbService.query('SELECT COUNT(*) AS total_count FROM roles WHERE status = \'Open\'');
+      const candidatesRows = await dbService.query('SELECT COUNT(*) AS total_count FROM candidates');
+      const interviewingRows = await dbService.query('SELECT COUNT(*) AS total_count FROM candidates WHERE status = \'Interviewing\'');
+      const selectedRows = await dbService.query('SELECT COUNT(*) AS total_count FROM candidates WHERE status = \'Selected\' OR status = \'Placed\'');
       const reviewsRows = await dbService.query('SELECT * FROM reviews');
-      const clientsRows = await dbService.query('SELECT COUNT(DISTINCT client) as count FROM roles');
+      const clientsRows = await dbService.query('SELECT COUNT(DISTINCT client) AS total_count FROM roles');
 
-      const activeCandidates = candidatesRows.length > 0 ? candidatesRows[0].count : 0;
-      const selectedCount = selectedRows.length > 0 ? selectedRows[0].count : 0;
-      const totalClients = clientsRows.length > 0 ? clientsRows[0].count : 0;
+      const activeCandidates = candidatesRows.length > 0 ? candidatesRows[0].total_count : 0;
+      const selectedCount = selectedRows.length > 0 ? selectedRows[0].total_count : 0;
+      const totalClients = clientsRows.length > 0 ? clientsRows[0].total_count : 0;
       const selectionGoal = activeCandidates > 0 ? Math.round((selectedCount / activeCandidates) * 100) : 0;
 
       const stats = {
@@ -771,13 +802,13 @@ export const dbService = {
                 skillCounts[s] = (skillCounts[s] || 0) + 1;
               });
             }
-          } catch (e) {}
+          } catch (e) { }
         });
         stats.topSkills = Object.entries(skillCounts)
           .map(([name, count]) => ({ name, count }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 4);
-      } catch (e) {}
+      } catch (e) { }
 
       return stats;
     } catch (e) {
@@ -900,20 +931,20 @@ export const dbService = {
 
   getAdminStats: async () => {
     try {
-      const openRolesRows = await dbService.query('SELECT COUNT(*) as count FROM roles WHERE status = \'Open\'');
-      const activeCandidatesRows = await dbService.query('SELECT COUNT(*) as count FROM candidates');
-      const interviewingRows = await dbService.query('SELECT COUNT(*) as count FROM candidates WHERE status = \'Interviewing\'');
-      const selectedRows = await dbService.query('SELECT COUNT(*) as count FROM candidates WHERE status = \'Selected\' OR status = \'Placed\'');
-      const subscribersRows = await dbService.query('SELECT COUNT(*) as count FROM newsletter_subscribers');
+      const openRolesRows = await dbService.query('SELECT COUNT(*) AS total_count FROM roles WHERE status = \'Open\'');
+      const activeCandidatesRows = await dbService.query('SELECT COUNT(*) AS total_count FROM candidates');
+      const interviewingRows = await dbService.query('SELECT COUNT(*) AS total_count FROM candidates WHERE status = \'Interviewing\'');
+      const selectedRows = await dbService.query('SELECT COUNT(*) AS total_count FROM candidates WHERE status = \'Selected\' OR status = \'Placed\'');
+      const subscribersRows = await dbService.query('SELECT COUNT(*) AS total_count FROM newsletter_subscribers');
 
-      const activeCandidates = activeCandidatesRows.length > 0 ? activeCandidatesRows[0].count : 0;
-      const selectedCount = selectedRows.length > 0 ? selectedRows[0].count : 0;
+      const activeCandidates = activeCandidatesRows.length > 0 ? activeCandidatesRows[0].total_count : 0;
+      const selectedCount = selectedRows.length > 0 ? selectedRows[0].total_count : 0;
       const selectionGoal = activeCandidates > 0 ? Math.round((selectedCount / activeCandidates) * 100) : 0;
 
       const stats = {
-        openRoles: openRolesRows.length > 0 ? openRolesRows[0].count : 0,
+        openRoles: openRolesRows.length > 0 ? openRolesRows[0].total_count : 0,
         activeCandidates: activeCandidates,
-        interviewStage: interviewingRows.length > 0 ? interviewingRows[0].count : 0,
+        interviewStage: interviewingRows.length > 0 ? interviewingRows[0].total_count : 0,
         selectionGoal: selectionGoal,
         monthlySelections: selectedCount,
         marketTrends: [
@@ -930,7 +961,7 @@ export const dbService = {
         recentActivity: [] as any[],
         velocityData: [0, 0, 0, 0, 0, 0, 0],
         timeToHireReduction: 0,
-        newsletterSubscribers: subscribersRows.length > 0 ? subscribersRows[0].count : 0
+        newsletterSubscribers: subscribersRows.length > 0 ? subscribersRows[0].total_count : 0
       };
 
       // Try to get real top skills from candidates
@@ -945,13 +976,13 @@ export const dbService = {
                 skillCounts[s] = (skillCounts[s] || 0) + 1;
               });
             }
-          } catch (e) {}
+          } catch (e) { }
         });
         stats.topSkills = Object.entries(skillCounts)
           .map(([name, count]) => ({ name, count }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 4);
-      } catch (e) {}
+      } catch (e) { }
 
       return stats;
     } catch (e) {

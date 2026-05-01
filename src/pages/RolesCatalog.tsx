@@ -16,7 +16,10 @@ import {
   Edit2,
   Download,
   Calendar,
-  PlusCircle
+  PlusCircle,
+  Share2,
+  Check,
+  FileText
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -53,6 +56,8 @@ export const RolesCatalog = () => {
   const [selectedRoleForCandidates, setSelectedRoleForCandidates] = useState<any | null>(null);
   const [isCandidateSheetOpen, setIsCandidateSheetOpen] = useState(false);
   const [isCandidateFormOpen, setIsCandidateFormOpen] = useState(false);
+  const [expandedDescriptions, setExpandedDescriptions] = useState<string[]>([]);
+  const [copiedRoleId, setCopiedRoleId] = useState<string | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 20;
@@ -71,7 +76,6 @@ export const RolesCatalog = () => {
     mutationFn: (newRole: any) => adminService.addRole(newRole),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-roles'] });
-      setIsDialogOpen(false);
     }
   });
 
@@ -79,7 +83,6 @@ export const RolesCatalog = () => {
     mutationFn: ({ id, data }: { id: string, data: any }) => adminService.updateRole(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-roles'] });
-      setIsDialogOpen(false);
       setEditingRole(null);
     }
   });
@@ -121,10 +124,24 @@ export const RolesCatalog = () => {
 
   const handleSaveRole = async (roleData: any) => {
     if (editingRole) {
-      await updateMutation.mutateAsync({ id: editingRole.id, data: roleData });
+      return updateMutation.mutateAsync({ id: editingRole.id, data: roleData });
     } else {
-      await createMutation.mutateAsync(roleData);
+      return createMutation.mutateAsync(roleData);
     }
+  };
+
+  const toggleDescription = (roleId: string) => {
+    setExpandedDescriptions(prev =>
+      prev.includes(roleId) ? prev.filter(id => id !== roleId) : [...prev, roleId]
+    );
+  };
+
+  const handleShareRole = (roleId: string) => {
+    const link = `${window.location.origin}/roles/${roleId}`;
+    navigator.clipboard.writeText(link).then(() => {
+      setCopiedRoleId(roleId);
+      setTimeout(() => setCopiedRoleId(null), 2000);
+    });
   };
 
   const handleEdit = (role: any) => {
@@ -300,15 +317,29 @@ export const RolesCatalog = () => {
                       </div>
                     </td>
                     <td className="px-8 py-6 text-right relative">
-                      <button
-                        onClick={() => setActiveMenu(activeMenu === role.id ? null : role.id)}
-                        data-role-menu-root="true"
-                        className="p-2 text-slate-400 hover:text-primary transition-colors"
-                      >
-                        <MoreVertical size={18} />
-                      </button>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => handleShareRole(role.id)}
+                          title="Copy job link"
+                          className={cn(
+                            'p-2 rounded-lg transition-colors text-xs font-bold flex items-center gap-1',
+                            copiedRoleId === role.id
+                              ? 'bg-tertiary-fixed text-on-tertiary-fixed-variant'
+                              : 'text-slate-400 hover:text-primary hover:bg-slate-50'
+                          )}
+                        >
+                          {copiedRoleId === role.id ? <Check size={15} /> : <Share2 size={15} />}
+                        </button>
+                        <button
+                          onClick={() => setActiveMenu(activeMenu === role.id ? null : role.id)}
+                          data-role-menu-root="true"
+                          className="p-2 text-slate-400 hover:text-primary transition-colors"
+                        >
+                          <MoreVertical size={18} />
+                        </button>
+                      </div>
                       {activeMenu === role.id && (
-                        <div data-role-menu-root="true" className="absolute right-8 top-12 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 py-2">
+                        <div data-role-menu-root="true" className="absolute right-8 top-14 w-52 bg-white rounded-xl shadow-xl border border-slate-100 z-50 py-2">
                           <button
                             onClick={() => handleEdit(role)}
                             className="w-full px-4 py-2 text-left text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
@@ -322,6 +353,13 @@ export const RolesCatalog = () => {
                             <Calendar size={14} /> Schedule Meeting
                           </button>
                           <button
+                            onClick={() => handleShareRole(role.id)}
+                            className="w-full px-4 py-2 text-left text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+                          >
+                            {copiedRoleId === role.id ? <Check size={14} /> : <Share2 size={14} />}
+                            {copiedRoleId === role.id ? 'Link Copied!' : 'Copy Job Link'}
+                          </button>
+                          <button
                             onClick={() => handleDelete(role.id)}
                             className="w-full px-4 py-2 text-left text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2"
                           >
@@ -333,6 +371,35 @@ export const RolesCatalog = () => {
                   </tr>
                   <tr className="bg-slate-50/50">
                     <td colSpan={6} className="px-8 pb-6 pt-0">
+                      {/* Description expand/collapse */}
+                      {role.description && (
+                        <div className="mb-3">
+                          <button
+                            type="button"
+                            onClick={() => toggleDescription(role.id)}
+                            className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-primary transition-colors"
+                          >
+                            <FileText size={12} />
+                            {expandedDescriptions.includes(role.id) ? 'Hide Description' : 'Show Description'}
+                            {expandedDescriptions.includes(role.id) ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                          </button>
+                          <AnimatePresence initial={false}>
+                            {expandedDescriptions.includes(role.id) && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="overflow-hidden"
+                              >
+                                <p className="mt-2 text-sm text-on-surface-variant leading-relaxed bg-slate-50 rounded-xl px-4 py-3 whitespace-pre-line">
+                                  {role.description}
+                                </p>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      )}
                       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white">
                         <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-3">
                           <div>
@@ -435,6 +502,18 @@ export const RolesCatalog = () => {
                   <p className="text-xs text-slate-400 font-medium">{role.client}</p>
                 </div>
               </div>
+              {/* Mobile share button */}
+              <button
+                onClick={() => handleShareRole(role.id)}
+                className={cn(
+                  'p-2 rounded-lg transition-colors',
+                  copiedRoleId === role.id
+                    ? 'bg-tertiary-fixed text-on-tertiary-fixed-variant'
+                    : 'text-slate-400 hover:text-primary'
+                )}
+              >
+                {copiedRoleId === role.id ? <Check size={16} /> : <Share2 size={16} />}
+              </button>
               <div className="relative" data-role-menu-root="true">
                 <button
                   onClick={() => setActiveMenu(activeMenu === role.id ? null : role.id)}
@@ -509,6 +588,35 @@ export const RolesCatalog = () => {
                 </div>
               )}
             </div>
+
+            {role.description && (
+              <div className="pt-2 border-t border-slate-50">
+                <button
+                  type="button"
+                  onClick={() => toggleDescription(role.id)}
+                  className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-primary transition-colors"
+                >
+                  <FileText size={11} />
+                  {expandedDescriptions.includes(role.id) ? 'Hide' : 'Description'}
+                  {expandedDescriptions.includes(role.id) ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                </button>
+                <AnimatePresence initial={false}>
+                  {expandedDescriptions.includes(role.id) && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <p className="mt-2 text-xs text-on-surface-variant leading-relaxed bg-slate-50 rounded-lg px-3 py-2 whitespace-pre-line">
+                        {role.description}
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
 
             <div className="flex flex-wrap gap-1.5 pt-2">
               {role.expertise.slice(0, 3).map((exp: string, j: number) => (
