@@ -37,6 +37,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { publicService } from '../services/publicService';
 import { Loader } from '../components/Loader';
 import { BrandLogo } from '../components/BrandLogo';
+import { API_ENABLED } from '../config';
 
 export const LandingPage = () => {
   const navigate = useNavigate();
@@ -67,16 +68,19 @@ export const LandingPage = () => {
   const { data: roles = [], isLoading: loading } = useQuery({
     queryKey: ['roles'],
     queryFn: () => publicService.getRoles(),
+    enabled: API_ENABLED,
   });
 
   const { data: statsData } = useQuery({
     queryKey: ['public-stats'],
     queryFn: () => publicService.getStats(),
+    enabled: API_ENABLED,
   });
 
   const { data: testimonials = [] } = useQuery({
     queryKey: ['public-testimonials'],
     queryFn: () => publicService.getTestimonials(),
+    enabled: API_ENABLED,
   });
 
   const handleApply = (roleId?: string) => {
@@ -101,7 +105,7 @@ export const LandingPage = () => {
     }
   };
 
-  if (loading) return (
+  if (API_ENABLED && loading) return (
     <div className="flex items-center justify-center h-screen bg-white">
       <Loader message="Loading Recruit Right Solutions..." />
     </div>
@@ -127,7 +131,7 @@ export const LandingPage = () => {
               <p className="text-on-surface-variant text-lg md:text-xl max-w-xl leading-relaxed mb-10">
                 We curate professional connections between world-class talent and industry-shaping organizations using architectural precision and tonal depth.
               </p>
-              <div className="flex flex-wrap gap-4">
+              {API_ENABLED && <div className="flex flex-wrap gap-4">
                 <a href="#roles" className="bg-primary text-white px-8 py-4 rounded font-headline font-bold flex items-center gap-2 hover:bg-primary-container transition-all editorial-shadow">
                   View Open Roles
                   <ArrowRight size={20} />
@@ -138,7 +142,7 @@ export const LandingPage = () => {
                 >
                   Submit Resume
                 </button>
-              </div>
+              </div>}
             </motion.div>
             <motion.div 
               initial={{ opacity: 0, scale: 0.9 }}
@@ -168,6 +172,7 @@ export const LandingPage = () => {
           </div>
         </section>
 
+        {API_ENABLED && <>
         {/* Metrics */}
         <section className="py-24 px-8 bg-surface">
           <div className="max-w-7xl mx-auto">
@@ -185,6 +190,7 @@ export const LandingPage = () => {
             </div>
           </div>
         </section>
+        </>}
 
         {/* About Us */}
         <section className="py-24 px-8 bg-surface" id="about">
@@ -303,6 +309,7 @@ export const LandingPage = () => {
           </div>
         </section>
 
+        {API_ENABLED && <>
         {/* Roles */}
         <section className="py-24 px-8 bg-surface-container-low" id="roles">
           <div className="max-w-7xl mx-auto">
@@ -478,6 +485,7 @@ export const LandingPage = () => {
             )}
           </div>
         </section>
+        </>}
 
         {/* Contact Us */}
         <section className="py-24 px-8 bg-surface border-t border-outline-variant/20" id="contact">
@@ -504,16 +512,19 @@ export const LandingPage = () => {
       </main>
 
       {/* Apply Dialog */}
-      <ApplyDialog 
+      {API_ENABLED && <ApplyDialog
         isOpen={isApplyOpen} 
         onClose={() => setIsApplyOpen(false)} 
         selectedRole={selectedRoleId}
         roles={roles}
-      />
+      />}
 
       {/* Footer */}
       <footer className="w-full py-12 border-t border-slate-200 bg-slate-50">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 px-8 max-w-7xl mx-auto">
+        <div className={cn(
+          "grid grid-cols-1 gap-8 px-8 max-w-7xl mx-auto",
+          API_ENABLED ? "md:grid-cols-4" : "md:grid-cols-3"
+        )}>
           <div>
             <BrandLogo className="mb-6" imgClassName="h-12" textClassName="text-lg" />
             <p className="text-slate-500 text-xs uppercase tracking-widest leading-loose mb-6">
@@ -534,7 +545,7 @@ export const LandingPage = () => {
           <div>
             <h6 className="font-headline font-bold text-sm text-primary mb-6">Quick Links</h6>
             <ul className="space-y-4 text-slate-500 text-xs uppercase tracking-widest">
-              <li><Link to="/positions" className="hover:underline">Open Positions</Link></li>
+              {API_ENABLED && <li><Link to="/positions" className="hover:underline">Open Positions</Link></li>}
               <li><a href="#" className="hover:underline">Privacy Policy</a></li>
               <li><a href="#" className="hover:underline">Terms of Service</a></li>
               <li><a href="#contact" className="hover:underline">Contact Us</a></li>
@@ -548,7 +559,7 @@ export const LandingPage = () => {
               <li className="flex items-center gap-3 break-all"><Mail size={16} className="shrink-0" /> <a href="https://mail.google.com/mail/?view=cm&fs=1&to=shiva@recruitrighthr.com" target="_blank" rel="noreferrer" className="hover:text-secondary">shiva@recruitrighthr.com</a></li>
             </ul>
           </div>
-          <div>
+          {API_ENABLED && <div>
             <h6 className="font-headline font-bold text-sm text-primary mb-6">Newsletter</h6>
             <p className="text-slate-500 text-[10px] uppercase tracking-[0.2em] mb-4">Get curated job alerts weekly.</p>
             <form onSubmit={handleNewsletterSubscribe} className="flex flex-col gap-2">
@@ -579,7 +590,7 @@ export const LandingPage = () => {
                 </p>
               )}
             </form>
-          </div>
+          </div>}
         </div>
         <div className="max-w-7xl mx-auto px-8 mt-12 pt-8 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-400 uppercase tracking-widest">
           <div>© 2024 Recruit Right Solutions. All rights reserved.</div>

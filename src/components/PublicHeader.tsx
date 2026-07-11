@@ -6,6 +6,7 @@ import { cn } from '@/src/lib/utils';
 import { LoginDialog } from './LoginDialog';
 import { authService } from '../services/authService';
 import { BrandLogo } from './BrandLogo';
+import { API_ENABLED } from '../config';
 
 interface PublicHeaderProps {
   onApply: () => void;
@@ -56,7 +57,7 @@ export const PublicHeader = ({ onApply, activePage }: PublicHeaderProps) => {
             >
               Home
             </Link>
-            <Link
+            {API_ENABLED && <Link
               to="/positions"
               className={cn(
                 "transition-colors hover:text-secondary",
@@ -64,8 +65,8 @@ export const PublicHeader = ({ onApply, activePage }: PublicHeaderProps) => {
               )}
             >
               Roles
-            </Link>
-            <button 
+            </Link>}
+            {API_ENABLED && <button
               onClick={handleAdminClick}
               className={cn(
                 "transition-colors hover:text-secondary flex items-center gap-1 font-bold tracking-tight",
@@ -73,16 +74,16 @@ export const PublicHeader = ({ onApply, activePage }: PublicHeaderProps) => {
               )}
             >
               <Lock size={14} className={activePage === 'admin' ? "text-secondary" : "text-slate-400"} /> Admin
-            </button>
+            </button>}
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
-            <button 
+            {API_ENABLED && <button
               onClick={onApply}
               className="hidden md:block bg-primary text-white px-4 md:px-6 py-2.5 rounded-lg font-headline font-bold hover:bg-primary-container transition-all text-sm md:text-base whitespace-nowrap"
             >
               Submit Resume
-            </button>
+            </button>}
             
             {/* Mobile Menu Toggle */}
             <button 
@@ -118,7 +119,7 @@ export const PublicHeader = ({ onApply, activePage }: PublicHeaderProps) => {
                   </span>
                   Home
                 </Link>
-                <Link
+                {API_ENABLED && <Link
                   to="/positions"
                   className={cn(
                     "py-3 border-b border-slate-50 flex items-center gap-3",
@@ -130,8 +131,8 @@ export const PublicHeader = ({ onApply, activePage }: PublicHeaderProps) => {
                     <Briefcase size={18} className={activePage === 'positions' ? "text-blue-900" : "text-slate-400"} />
                   </span>
                   Roles
-                </Link>
-                <button 
+                </Link>}
+                {API_ENABLED && <button
                   onClick={(e) => {
                     handleAdminClick(e);
                     setIsMobileMenuOpen(false);
@@ -145,8 +146,8 @@ export const PublicHeader = ({ onApply, activePage }: PublicHeaderProps) => {
                     <Lock size={18} className={activePage === 'admin' ? "text-blue-900" : "text-slate-400"} />
                   </span>
                   Admin
-                </button>
-                <button 
+                </button>}
+                {API_ENABLED && <button
                   onClick={() => {
                     onApply();
                     setIsMobileMenuOpen(false);
@@ -155,20 +156,20 @@ export const PublicHeader = ({ onApply, activePage }: PublicHeaderProps) => {
                 >
                   <CloudUpload size={20} />
                   Submit Resume
-                </button>
+                </button>}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </header>
 
-      <LoginDialog 
+      {API_ENABLED && <LoginDialog
         isOpen={isLoginOpen} 
         onClose={() => setIsLoginOpen(false)} 
         onSuccess={() => {
           // Success is handled inside LoginDialog by navigating
         }}
-      />
+      />}
     </>
   );
 };

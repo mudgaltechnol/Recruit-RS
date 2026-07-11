@@ -15,6 +15,7 @@ import { AdminIntelligence } from './pages/AdminIntelligence';
 import { EmployeesAdmin } from './pages/EmployeesAdmin';
 import { AdminLayout } from './components/AdminLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { API_ENABLED } from './config';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,20 +34,20 @@ const App = () => {
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
-          <Route path="/positions" element={<PositionsPage />} />
-          <Route path="/roles/:id" element={<RoleDetailPage />} />
-          <Route path="/intelligence" element={<Dashboard />} />
+          {API_ENABLED && <Route path="/positions" element={<PositionsPage />} />}
+          {API_ENABLED && <Route path="/roles/:id" element={<RoleDetailPage />} />}
+          {API_ENABLED && <Route path="/intelligence" element={<Dashboard />} />}
 
           {/* Admin Routes */}
-          <Route 
+          {API_ENABLED && <Route
             path="/admin" 
             element={
               <ProtectedRoute>
                 <Navigate to="/admin/candidates" replace />
               </ProtectedRoute>
             } 
-          />
-          <Route 
+          />}
+          {API_ENABLED && <Route
             path="/admin/intelligence" 
             element={
               <ProtectedRoute requireAdmin>
@@ -55,8 +56,8 @@ const App = () => {
                 </AdminLayout>
               </ProtectedRoute>
             } 
-          />
-          <Route 
+          />}
+          {API_ENABLED && <Route
             path="/admin/candidates" 
             element={
               <ProtectedRoute>
@@ -65,8 +66,8 @@ const App = () => {
                 </AdminLayout>
               </ProtectedRoute>
             } 
-          />
-          <Route 
+          />}
+          {API_ENABLED && <Route
             path="/admin/candidates/:id" 
             element={
               <ProtectedRoute>
@@ -75,8 +76,8 @@ const App = () => {
                 </AdminLayout>
               </ProtectedRoute>
             } 
-          />
-          <Route 
+          />}
+          {API_ENABLED && <Route
             path="/admin/roles" 
             element={
               <ProtectedRoute>
@@ -85,8 +86,8 @@ const App = () => {
                 </AdminLayout>
               </ProtectedRoute>
             } 
-          />
-          <Route 
+          />}
+          {API_ENABLED && <Route
             path="/admin/newsletter" 
             element={
               <ProtectedRoute requireAdmin>
@@ -95,8 +96,8 @@ const App = () => {
                 </AdminLayout>
               </ProtectedRoute>
             } 
-          />
-          <Route 
+          />}
+          {API_ENABLED && <Route
             path="/admin/schedule" 
             element={
               <ProtectedRoute>
@@ -105,8 +106,8 @@ const App = () => {
                 </AdminLayout>
               </ProtectedRoute>
             } 
-          />
-          <Route 
+          />}
+          {API_ENABLED && <Route
             path="/admin/employees" 
             element={
               <ProtectedRoute requireAdmin>
@@ -115,8 +116,8 @@ const App = () => {
                 </AdminLayout>
               </ProtectedRoute>
             } 
-          />
-          <Route 
+          />}
+          {API_ENABLED && <Route
             path="/admin/reports" 
             element={
               <ProtectedRoute requireAdmin>
@@ -125,7 +126,7 @@ const App = () => {
                 </AdminLayout>
               </ProtectedRoute>
             } 
-          />
+          />}
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

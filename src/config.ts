@@ -1,7 +1,13 @@
 export const GET_DATA_FROM_FAKE = false;
-export const IS_PROD = true; // Set to true for production deployment
+export const IS_PROD = false; // Set to true for production deployment
 
-const envApiBaseUrl = (process.env.VITE_API_BASE_URL || '').trim();
+// API features remain enabled unless a deployment explicitly opts into
+// frontend-only mode with VITE_API_ENABLED=false.
+const runtimeEnv = import.meta.env ?? (typeof process !== 'undefined' ? process.env : {});
+
+export const API_ENABLED = runtimeEnv.VITE_API_ENABLED !== 'false';
+
+const envApiBaseUrl = (runtimeEnv.VITE_API_BASE_URL || '').trim();
 const defaultProdApiBaseUrl = 'https://api.recruitrighthr.com';
 const rawApiBaseUrl = envApiBaseUrl || (IS_PROD ? defaultProdApiBaseUrl : '');
 
